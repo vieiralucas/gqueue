@@ -44,22 +44,12 @@ func New(rate int, dur time.Duration) *GQueue {
 	}
 
 	go func() {
-		lastPrint := time.Now().Round(time.Minute)
 		for {
 			if gq.done {
 				return
 			}
 
 			gq.mutex.Lock()
-			if time.Since(lastPrint) > time.Second*5 {
-				running := 0
-				for _, t := range gq.running {
-					if t.endTime != nil {
-						running++
-					}
-				}
-				lastPrint = time.Now()
-			}
 
 			for k, v := range gq.enqueued {
 				if len(gq.running) >= rate {
