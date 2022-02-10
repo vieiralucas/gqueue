@@ -71,11 +71,21 @@ func New(rate int, dur time.Duration) *GQueue {
 			}
 
 			toDelete := make([]ID, 0)
+			sleep := dur
 			for k, task := range gq.running {
 				delete(gq.enqueued, k)
 
-				if task.endTime != nil && time.Since(*task.endTime) > dur {
-					toDelete = append(toDelete, k)
+				if task.endTime != nil {
+					ellapsed := time.Since(*task.endTime)
+
+					if ellapsed > dur {
+						toDelete = append(toDelete, k)
+					} else {
+						remaining := dur - ellapsed
+						if remaining < sleep {
+							sleep = remaining
+						}
+					}
 				}
 			}
 
@@ -84,6 +94,10 @@ func New(rate int, dur time.Duration) *GQueue {
 			}
 
 			gq.mutex.Unlock()
+
+			if len(gq.running) >= rate {
+				time.Sleep(sleep)
+			}
 		}
 	}()
 
