@@ -23,6 +23,7 @@ type GQueue struct {
 	wg   *sync.WaitGroup
 	rate int
 	dur  time.Duration
+	done bool
 
 	mutex    *sync.Mutex
 	id       ID
@@ -35,6 +36,7 @@ func New(rate int, dur time.Duration) *GQueue {
 		wg:       &sync.WaitGroup{},
 		rate:     rate,
 		dur:      dur,
+		done:     false,
 		mutex:    &sync.Mutex{},
 		id:       0,
 		enqueued: make(map[ID]*task),
@@ -44,6 +46,10 @@ func New(rate int, dur time.Duration) *GQueue {
 	go func() {
 		lastPrint := time.Now().Round(time.Minute)
 		for {
+			if gq.done {
+				return
+			}
+
 			gq.mutex.Lock()
 			if time.Since(lastPrint) > time.Second*5 {
 				running := 0
@@ -85,6 +91,10 @@ func New(rate int, dur time.Duration) *GQueue {
 }
 
 func (gq *GQueue) Done(id ID) {
+	if gq.done {
+		return
+	}
+
 	gq.mutex.Lock()
 	task := gq.running[id]
 	now := time.Now()
@@ -94,6 +104,10 @@ func (gq *GQueue) Done(id ID) {
 }
 
 func (gq *GQueue) Add(t *task) {
+	if gq.done {
+		panic("Called Add in a done GQueue")
+	}
+
 	gq.mutex.Lock()
 	gq.wg.Add(1)
 	gq.enqueued[gq.id] = t
@@ -103,4 +117,5 @@ func (gq *GQueue) Add(t *task) {
 
 func (gq *GQueue) Wait() {
 	gq.wg.Wait()
+	gq.done = true
 }
